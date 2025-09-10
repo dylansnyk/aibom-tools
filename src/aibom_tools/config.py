@@ -18,6 +18,7 @@ class Config:
     
     api_token: Optional[str] = None
     org_id: Optional[str] = None
+    group_id: Optional[str] = None
     api_url: str = "https://api.snyk.io"
     api_version: str = "2025-07-22"
     debug: bool = False
@@ -30,6 +31,9 @@ class Config:
             
         if not self.org_id:
             self.org_id = os.getenv("SNYK_ORG_ID")
+            
+        if not self.group_id:
+            self.group_id = os.getenv("SNYK_GROUP_ID")
             
         if not self.api_url:
             self.api_url = os.getenv("SNYK_API_URL", "https://api.snyk.io")

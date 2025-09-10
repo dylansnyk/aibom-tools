@@ -121,7 +121,10 @@ def scan(
             console.print("[bold red]❌ Could not retrieve any targets. Exiting.[/bold red]")
             sys.exit(1)
             
-        console.print(f"[bold blue]🎯 Found {len(all_targets)} total targets in the organization.[/bold blue]")
+        if config.group_id:
+            console.print(f"[bold blue]🎯 Found {len(all_targets)} total targets in the group {config.group_id}.[/bold blue]")
+        else:
+            console.print(f"[bold blue]🎯 Found {len(all_targets)} total targets in the organization {config.org_id}.[/bold blue]")
         
         # Filter targets to only supported ones for the progress bar
         supported_targets = []

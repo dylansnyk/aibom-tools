@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 import requests
 import time
 import sys
@@ -14,6 +15,7 @@ class SnykAIBomAPIClient:
     def __init__(self, config: Config):
         self.api_url = config.api_url
         self.org_id = config.org_id
+        self.group_id = config.group_id
         self.api_version = config.api_version
         self.headers = {
             'Content-Type': 'application/vnd.api+json',
@@ -22,11 +24,47 @@ class SnykAIBomAPIClient:
     
     def get_all_targets(self):
         """
+        Fetches all targets from a list of Snyk organizations, handling pagination.
+        """
+        orgs = []
+        if self.group_id:
+            orgs = self.get_all_orgs_from_group()
+        else:
+            orgs.append({'id': self.org_id})
+
+        targets = []
+        for org in orgs:
+            targets.extend(self.get_all_targets_from_org(org))
+        
+        return targets
+
+    def get_all_orgs_from_group(self):
+        """
+        Fetches all organizations from a Snyk group, handling pagination.
+        """
+        orgs = []
+        url = f"{self.api_url}/rest/groups/{self.group_id}/orgs?version={self.api_version}&limit=100"
+        while url:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            orgs.extend(data.get('data', []))
+            url = data.get('links', {}).get('next')
+        return orgs
+        
+    def get_all_targets_from_org(self, org: Optional[dict]):
+        """
         Fetches all targets from a Snyk organization, handling pagination.
         """
+
+        if org:
+            org_id = org.get('id')
+        else:
+            org_id = self.org_id
+
         targets = []
         # Start with the first page URL, limiting to 100 results per page
-        url = f"{self.api_url}/rest/orgs/{self.org_id}/targets?version={self.api_version}&limit=100"
+        url = f"{self.api_url}/rest/orgs/{org_id}/targets?version={self.api_version}&limit=100"
         
         # Loop as long as there is a "next" page URL
         while url:
@@ -61,10 +99,11 @@ class SnykAIBomAPIClient:
         """
         target_id = target['id']
         target_name = target['attributes'].get('display_name', 'Unknown Name')
+        org_id = target['relationships']['organization']['data']['id']
         
         # 1. Create the AI-BOM Job
         try:
-            post_url = f"{self.api_url}/rest/orgs/{self.org_id}/ai_boms?version={self.api_version}"
+            post_url = f"{self.api_url}/rest/orgs/{org_id}/ai_boms?version={self.api_version}"
             payload = {
                 "data": {
                     "type": "ai_bom_scm_bundle",
