@@ -78,17 +78,22 @@ def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str],
     type=click.Path(),
     help="Output file path for AI-BOMs",
 )
+@click.option(
+    "--include",
+    "-i",
+    type=str,
+    help="Comma-separated list of AI component types to include in the summary (e.g., 'ML Model,Application,Library')",
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
     output: Optional[str],
+    include: Optional[str],
 ) -> None:
     """
     Create a new AI-BOM scan
     
-    This command triggers the creation of a new AI-BOM using a target ID. 
-    By default, it will start the scan and return the job ID.
-    Use --wait to wait for completion and optionally save the result to a file.
+    This command triggers a scan of all targets in the given Snyk organization.
     """
     config = ctx.obj["config"]
     
@@ -169,7 +174,7 @@ def scan(
         
         # Display comprehensive summary of all AI components
         if all_aiboms:
-            _display_aibom_summary_all(all_aiboms)
+            _display_aibom_summary_all(all_aiboms, include_types=include)
         else:
             console.print("[bold yellow]⚠️  No AI components found in any targets.[/bold yellow]")
 
@@ -184,11 +189,49 @@ def scan(
             console.print_exception()
         sys.exit(1)
 
-def _display_aibom_summary_all(all_aiboms: list) -> None:
+def _display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = None) -> None:
     """Display a comprehensive summary of all AI components across all targets"""
     if not all_aiboms:
         console.print("[yellow]No AI components found across any targets.[/yellow]")
         return
+    
+    # Parse and normalize include types if provided
+    included_internal_types = None
+    if include_types:
+        # Create mapping from user-friendly names to internal types (case-insensitive)
+        user_type_mapping = {
+            'ml model': 'machine-learning-model',
+            'ml models': 'machine-learning-model', 
+            'machine learning model': 'machine-learning-model',
+            'machine learning models': 'machine-learning-model',
+            'dataset': 'data',
+            'datasets': 'data',
+            'data': 'data',
+            'library': 'library',
+            'libraries': 'library',
+            'application': 'application',
+            'applications': 'application',
+            'app': 'application',
+            'apps': 'application'
+        }
+        
+        # Parse comma-separated types and convert to internal format
+        include_list = [t.strip().lower() for t in include_types.split(',')]
+        included_internal_types = set()
+        
+        for user_type in include_list:
+            if user_type in user_type_mapping:
+                included_internal_types.add(user_type_mapping[user_type])
+            else:
+                # Try direct match with internal types (for backward compatibility)
+                if user_type in ['machine-learning-model', 'data', 'library', 'application']:
+                    included_internal_types.add(user_type)
+                else:
+                    console.print(f"[bold yellow]Warning:[/bold yellow] Unknown component type '{user_type}' will be ignored")
+        
+        if not included_internal_types:
+            console.print("[bold red]Error:[/bold red] No valid component types specified")
+            return
     
     # Animated header
     with console.status("[bold green]Preparing AI Components Summary...", spinner="aesthetic"):
@@ -221,8 +264,13 @@ def _display_aibom_summary_all(all_aiboms: list) -> None:
                 component.get('type') == 'application'):
                 continue
             
-            name = component.get('name', 'Unknown Component')
             comp_type = component.get('type', 'unknown')
+            
+            # Filter by included types if specified
+            if included_internal_types and comp_type not in included_internal_types:
+                continue
+            
+            name = component.get('name', 'Unknown Component')
             
             # Format component type for better readability
             type_mapping = {
@@ -281,6 +329,11 @@ def _display_aibom_summary_all(all_aiboms: list) -> None:
                     continue
                 
                 comp_type = component.get('type', 'unknown')
+                
+                # Filter by included types if specified
+                if included_internal_types and comp_type not in included_internal_types:
+                    continue
+                
                 component_types[comp_type] = component_types.get(comp_type, 0) + 1
     
     # Statistics panel

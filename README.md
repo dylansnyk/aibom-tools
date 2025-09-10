@@ -53,6 +53,9 @@ SNYK_API_URL=https://api.snyk.io
 # Scan all targets in your Snyk org
 uvx aibom-tools scan
 
+# Filter only for ML Models
+uvx aibom-tools scan --include 'ML Model'
+
 # Run from git repo
 uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 ```
@@ -88,6 +91,21 @@ Options:
 
 Commands:
   scan  Create a new AI-BOM scan
+```
+```zsh
+# Scan options
+➜  aibom-tools git:(main) ✗ uv run aibom-tools scan --help
+Usage: aibom-tools scan [OPTIONS]
+
+  Create a new AI-BOM scan
+
+  This command triggers a scan of all targets in the given Snyk organization.
+
+Options:
+  -o, --output PATH   Output file path for AI-BOMs
+  -i, --include TEXT  Comma-separated list of AI component types to include in
+                      the summary (e.g., 'ML Model,Application,Library')
+  --help              Show this message and exit.
 ```
 
 ### Help
