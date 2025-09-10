@@ -16,7 +16,7 @@ uvx aibom-tools scan
 ```bash
 git clone https://github.com/dylansnyk/aibom-tools
 cd aibom-tools
-uv run aibom_tools scan
+uv run aibom-tools scan
 ```
 
 ## Upgrading
