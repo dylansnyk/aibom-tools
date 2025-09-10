@@ -94,11 +94,6 @@ reject:
   - llama-2-7b
 ```
 
-When a policy file is provided, the tool will:
-- Display a second table highlighting any forbidden models found in the scan
-- Show a success message if no forbidden models are detected
-- Include policy validation results in HTML reports
-
 An example policy file (`policy-example.yaml`) is included in the repository for reference.
 
 ### Command Line Options
