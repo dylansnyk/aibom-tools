@@ -311,5 +311,13 @@ def main() -> None:
     cli()
 
 
+def scan_main() -> None:
+    """Direct entry point for the scan command"""
+    print(sys.argv)
+    sys.argv = ["aibom-tools", "scan"] + sys.argv[1:]
+    print(sys.argv)
+    cli()
+
+
 if __name__ == "__main__":
     main()

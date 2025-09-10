@@ -41,6 +41,7 @@ dev = [
 
 [project.scripts]
 aibom-tools = "aibom_tools.cli:main"
+scan = "aibom_tools.cli:scan_main"
 
 [project.urls]
 Homepage = "https://github.com/dylanhavelock/aibom-tools"

@@ -7,7 +7,7 @@ A CLI tool for generating AI Bill of Materials (AI-BOM) using the Snyk API.
 ### Using uvx (recommended)
 
 ```bash
-uvx gh:dylansnyk/aibom-scan
+uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 ```
 
 ### Run locally
@@ -50,14 +50,17 @@ SNYK_API_URL=https://api.snyk.io
 
 ```bash
 # Scan all targets in your Snyk org
-uvx gh:dylansnyk/aibom-tools scan
+uvx --from git+https://github.com/dylansnyk/aibom-tools aibom-tools scan
+
+# Shortcut to run scan directly
+uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 ```
 
 ### Output to JSON file
 
 ```bash
 # Specify path to output file
-uvx gh:dylansnyk/aibom-tools scan --output output.json
+uvx --from git+https://github.com/dylansnyk/aibom-tools scan --output output.json
 ```
 
 ### Command Line Options
@@ -90,28 +93,15 @@ Commands:
 
 ```bash
 # General help
-uvx gh:dylansnyk/aibom-tools --help
+uvx --from git+https://github.com/dylansnyk/aibom-tools --help
 
 # Scan command help
-uvx gh:dylansnyk/aibom-tools scan --help
-```
-
-## Examples
-
-### Basic Usage
-
-```bash
-# Set up environment
-export SNYK_API_TOKEN="12345678-1234-1234-1234-123456789012"
-export SNYK_ORG_ID="12345678-1234-1234-1234-123456789012"
-
-# Run the scan
-uvx gh:dylansnyk/aibom-tools scan
+uvx --from git+https://github.com/dylansnyk/aibom-tools scan --help
 ```
 
 ## Output Format
 
-The AI-BOM results are returned in the standard Snyk API JSON format:
+Using `--output` or `-o` can be used to output a JSON file. The AI-BOM results are returned in the standard Snyk API JSON format:
 
 ```json
 {
