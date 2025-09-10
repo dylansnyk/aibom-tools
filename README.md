@@ -19,6 +19,12 @@ cd aibom-tools
 uv run aibom_tools scan
 ```
 
+## Upgrading
+
+```bash
+uv tool upgrade aibom-tools
+```
+
 ## Configuration
 
 The tool requires Snyk API credentials. You can provide them via:
