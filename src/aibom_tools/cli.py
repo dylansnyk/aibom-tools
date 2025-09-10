@@ -6,9 +6,10 @@ import os
 import sys
 import json
 import time
-from typing import Optional
+from typing import Optional, List, Set
 
 import click
+import yaml
 from rich.console import Console
 from rich.table import Table
 from rich import print as rprint
@@ -21,6 +22,50 @@ from .config import Config
 from .api import SnykAIBomAPIClient
 
 console = Console()
+
+
+def load_policy_file(policy_file_path: str) -> Set[str]:
+    """
+    Load and parse a YAML policy file to extract rejected models.
+    
+    Args:
+        policy_file_path: Path to the YAML policy file
+        
+    Returns:
+        Set of rejected model names
+        
+    Raises:
+        click.ClickException: If the policy file cannot be parsed or is invalid
+    """
+    try:
+        with open(policy_file_path, 'r') as f:
+            policy_data = yaml.safe_load(f)
+        
+        if not isinstance(policy_data, dict):
+            raise click.ClickException(f"Policy file must contain a YAML dictionary, got {type(policy_data)}")
+        
+        if 'reject' not in policy_data:
+            raise click.ClickException("Policy file must contain a 'reject' key")
+        
+        reject_list = policy_data['reject']
+        if not isinstance(reject_list, list):
+            raise click.ClickException("'reject' key must contain a list of model names")
+        
+        # Convert to set for efficient lookup and normalize names
+        rejected_models = set()
+        for model in reject_list:
+            if not isinstance(model, str):
+                raise click.ClickException(f"All rejected models must be strings, got {type(model)}")
+            rejected_models.add(model.strip().lower())
+        
+        return rejected_models
+        
+    except yaml.YAMLError as e:
+        raise click.ClickException(f"Failed to parse YAML policy file: {e}")
+    except FileNotFoundError:
+        raise click.ClickException(f"Policy file not found: {policy_file_path}")
+    except Exception as e:
+        raise click.ClickException(f"Error reading policy file: {e}")
 
 
 @click.group()
@@ -100,12 +145,18 @@ def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str], gro
     type=str,
     help="Comma-separated list of AI component types to include in the summary (e.g., 'ML Model,Application,Library')",
 )
+@click.option(
+    "--policy-file",
+    type=click.Path(exists=True, readable=True),
+    help="Path to YAML policy file containing list of forbidden models",
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
     output: Optional[str],
     html: Optional[str],
     include: Optional[str],
+    policy_file: Optional[str],
 ) -> None:
     """
     Create a new AI-BOM scan
@@ -113,6 +164,16 @@ def scan(
     This command triggers a scan of all targets in the given Snyk organization.
     """
     config = ctx.obj["config"]
+    
+    # Load policy file if provided
+    rejected_models = None
+    if policy_file:
+        try:
+            rejected_models = load_policy_file(policy_file)
+            console.print(f"[bold blue]📋 Policy file loaded: {len(rejected_models)} forbidden models[/bold blue]")
+        except click.ClickException as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            sys.exit(1)
     
     # Validate required configuration
     if not config.api_token:
@@ -194,7 +255,7 @@ def scan(
         
         # Display comprehensive summary of all AI components
         if all_aiboms:
-            _display_aibom_summary_all(all_aiboms, include_types=include)
+            _display_aibom_summary_all(all_aiboms, include_types=include, rejected_models=rejected_models)
         else:
             console.print("[bold yellow]⚠️  No AI components found in any targets.[/bold yellow]")
 
@@ -205,7 +266,7 @@ def scan(
             console.print(f"[bold green]📄 JSON report saved to: {output}[/bold green]")
         
         if html:
-            html_content = _generate_html_report(all_aiboms, include_types=include)
+            html_content = _generate_html_report(all_aiboms, include_types=include, rejected_models=rejected_models)
             with open(html, 'w', encoding='utf-8') as f:
                 f.write(html_content)
             console.print(f"[bold green]🌐 HTML report saved to: {html}[/bold green]")
@@ -216,7 +277,7 @@ def scan(
             console.print_exception()
         sys.exit(1)
 
-def _display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = None) -> None:
+def _display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = None, rejected_models: Optional[Set[str]] = None) -> None:
     """Display a comprehensive summary of all AI components across all targets"""
     if not all_aiboms:
         console.print("[yellow]No AI components found across any targets.[/yellow]")
@@ -385,8 +446,94 @@ def _display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = 
             stats_table.add_row(formatted_type, str(count))
         
         console.print(stats_table)
+    
+    # Policy validation and forbidden models table
+    if rejected_models:
+        _display_policy_validation(all_aiboms, rejected_models)
 
-def _generate_html_report(all_aiboms: list, include_types: Optional[str] = None) -> str:
+
+def _display_policy_validation(all_aiboms: list, rejected_models: Set[str]) -> None:
+    """Display policy validation results and forbidden models table"""
+    # Collect all forbidden models found in the scan
+    forbidden_found = []
+    
+    for target_info in all_aiboms:
+        target_name = target_info.get('target_name', 'Unknown Target')
+        aibom_data = target_info.get('aibom_data', {})
+        
+        # Handle both old format (data.attributes.components) and new format (components)
+        if 'data' in aibom_data:
+            components = aibom_data.get('data', {}).get('attributes', {}).get('components', [])
+        else:
+            components = aibom_data.get('components', [])
+        
+        for component in components:
+            # Skip the Root application component as it's not a real AI component
+            if (component.get('name') == 'Root' and 
+                component.get('type') == 'application'):
+                continue
+            
+            # Only check ML models for policy violations
+            if component.get('type') != 'machine-learning-model':
+                continue
+            
+            model_name = component.get('name', '').strip().lower()
+            
+            # Check if this model is in the rejected list
+            if model_name in rejected_models:
+                # Extract location information from evidence
+                locations = []
+                evidence = component.get('evidence', {})
+                occurrences = evidence.get('occurrences', [])
+                
+                for occurrence in occurrences:
+                    location = occurrence.get('location', '')
+                    line = occurrence.get('line', '')
+                    if location and line:
+                        locations.append(f"{location}:{line}")
+                    elif location:
+                        locations.append(location)
+                
+                # Format locations for display
+                if locations:
+                    location_str = '\n'.join(locations[:3])  # Show max 3 locations
+                    if len(locations) > 3:
+                        location_str += f'\n... and {len(locations) - 3} more'
+                else:
+                    location_str = "No source locations"
+                
+                forbidden_found.append({
+                    'model_name': component.get('name', 'Unknown Model'),
+                    'target_name': target_name,
+                    'locations': location_str
+                })
+    
+    # Display results
+    console.print("\n[bold red]🚫 Policy Validation Results[/bold red]")
+    console.print("[bold blue]" + "=" * 50 + "[/bold blue]")
+    
+    if forbidden_found:
+        # Create table for forbidden models
+        forbidden_table = Table(show_header=True, header_style="bold red")
+        forbidden_table.add_column("Forbidden Model", style="red", no_wrap=False, min_width=40)
+        forbidden_table.add_column("Target Name", style="yellow", no_wrap=True, min_width=25)
+        forbidden_table.add_column("Locations", style="dim", no_wrap=False, min_width=30)
+        
+        for item in forbidden_found:
+            forbidden_table.add_row(
+                item['model_name'],
+                item['target_name'],
+                item['locations']
+            )
+        
+        console.print(forbidden_table)
+        console.print(f"\n[bold red]❌ Policy Violation: {len(forbidden_found)} forbidden model(s) found![/bold red]")
+    else:
+        console.print("[bold green]✅ Policy Compliance: No forbidden models found in the scan![/bold green]")
+        console.print("[bold blue]📋 All models in use comply with the provided policy.[/bold blue]")
+
+
+def _generate_html_report(all_aiboms: list, include_types: Optional[str] = None, rejected_models: Optional[Set[str]] = None) -> str:
     """Generate an HTML report of all AI components across all targets"""
     if not all_aiboms:
         return _generate_empty_html_report()
@@ -642,6 +789,8 @@ def _generate_html_report(all_aiboms: list, include_types: Optional[str] = None)
         </div>
         
         <div class="table-container">
+            {_generate_policy_validation_html(all_aiboms, rejected_models) if rejected_models else ''}
+            
             {_generate_component_types_breakdown_html(component_types)}
             
             {_generate_components_table_html(components_data) if components_data else _generate_no_data_html()}
@@ -802,6 +951,103 @@ def _generate_no_data_html() -> str:
         <h2>⚠️ No AI Components Found</h2>
         <p>No AI components were detected in any of the scanned targets.</p>
     </div>'''
+
+
+def _generate_policy_validation_html(all_aiboms: list, rejected_models: Set[str]) -> str:
+    """Generate HTML for policy validation results"""
+    # Collect all forbidden models found in the scan (same logic as _display_policy_validation)
+    forbidden_found = []
+    
+    for target_info in all_aiboms:
+        target_name = target_info.get('target_name', 'Unknown Target')
+        aibom_data = target_info.get('aibom_data', {})
+        
+        # Handle both old format (data.attributes.components) and new format (components)
+        if 'data' in aibom_data:
+            components = aibom_data.get('data', {}).get('attributes', {}).get('components', [])
+        else:
+            components = aibom_data.get('components', [])
+        
+        for component in components:
+            # Skip the Root application component as it's not a real AI component
+            if (component.get('name') == 'Root' and 
+                component.get('type') == 'application'):
+                continue
+            
+            # Only check ML models for policy violations
+            if component.get('type') != 'machine-learning-model':
+                continue
+            
+            model_name = component.get('name', '').strip().lower()
+            
+            # Check if this model is in the rejected list
+            if model_name in rejected_models:
+                # Extract location information from evidence
+                locations = []
+                evidence = component.get('evidence', {})
+                occurrences = evidence.get('occurrences', [])
+                
+                for occurrence in occurrences:
+                    location = occurrence.get('location', '')
+                    line = occurrence.get('line', '')
+                    if location and line:
+                        locations.append(f"{location}:{line}")
+                    elif location:
+                        locations.append(location)
+                
+                # Format locations for display
+                if locations:
+                    location_str = '; '.join(locations[:5])  # Show max 5 locations
+                    if len(locations) > 5:
+                        location_str += f' ... and {len(locations) - 5} more'
+                else:
+                    location_str = "No source locations"
+                
+                forbidden_found.append({
+                    'model_name': component.get('name', 'Unknown Model'),
+                    'target_name': target_name,
+                    'locations': location_str
+                })
+    
+    # Generate HTML content
+    if forbidden_found:
+        # Policy violation HTML
+        html_content = '''
+        <h3 style="color: #d32f2f; margin-top: 30px;">🚫 Policy Validation Results</h3>
+        <div style="background: #ffebee; border: 1px solid #f44336; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h4 style="color: #d32f2f; margin: 0 0 15px 0;">❌ Policy Violation: ''' + str(len(forbidden_found)) + ''' forbidden model(s) found!</h4>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f44336; color: white;">
+                        <th style="padding: 12px; text-align: left;">Forbidden Model</th>
+                        <th style="padding: 12px; text-align: left;">Target Name</th>
+                        <th style="padding: 12px; text-align: left;">Locations</th>
+                    </tr>
+                </thead>
+                <tbody>'''
+        
+        for item in forbidden_found:
+            html_content += f'''
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 12px;"><strong style="color: #d32f2f;">{item['model_name']}</strong></td>
+                        <td style="padding: 12px;">{item['target_name']}</td>
+                        <td style="padding: 12px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.9em; color: #666;">{item['locations']}</td>
+                    </tr>'''
+        
+        html_content += '''
+                </tbody>
+            </table>
+        </div>'''
+        
+        return html_content
+    else:
+        # Policy compliance HTML
+        return '''
+        <h3 style="color: #2e7d32; margin-top: 30px;">🚫 Policy Validation Results</h3>
+        <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h4 style="color: #2e7d32; margin: 0 0 10px 0;">✅ Policy Compliance: No forbidden models found in the scan!</h4>
+            <p style="color: #2e7d32; margin: 0;">📋 All models in use comply with the provided policy.</p>
+        </div>'''
 
 def main() -> None:
     """Main entry point for the CLI"""

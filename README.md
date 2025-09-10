@@ -73,6 +73,34 @@ uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 uvx aibom-tools scan --output output.json
 ```
 
+### Policy File Validation
+
+You can use a YAML policy file to define forbidden AI models that should be flagged during the scan:
+
+```bash
+# Use policy file to validate against forbidden models
+uvx aibom-tools scan --policy-file policy.yaml
+```
+
+#### Policy File Format
+
+Create a YAML file with the following structure:
+
+```yaml
+reject:
+  - claude-3-5-sonnet-20240620
+  - gpt-3.5-turbo
+  - gpt-4
+  - llama-2-7b
+```
+
+When a policy file is provided, the tool will:
+- Display a second table highlighting any forbidden models found in the scan
+- Show a success message if no forbidden models are detected
+- Include policy validation results in HTML reports
+
+An example policy file (`policy-example.yaml`) is included in the repository for reference.
+
 ### Command Line Options
 
 ```zsh
@@ -109,8 +137,11 @@ Usage: aibom-tools scan [OPTIONS]
 
 Options:
   -o, --output PATH   Output file path for AI-BOMs
+  --html PATH         Output file path for HTML report
   -i, --include TEXT  Comma-separated list of AI component types to include in
                       the summary (e.g., 'ML Model,Application,Library')
+  --policy-file PATH  Path to YAML policy file containing list of forbidden
+                      models
   --help              Show this message and exit.
 ```
 
