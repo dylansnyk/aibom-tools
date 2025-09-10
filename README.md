@@ -7,7 +7,8 @@ A CLI tool for generating AI Bill of Materials (AI-BOM) using the Snyk API.
 ### Using uvx (recommended)
 
 ```bash
-uvx --from git+https://github.com/dylansnyk/aibom-tools scan
+uv tool install git+https://github.com/dylansnyk/aibom-tools
+uvx aibom-tools scan
 ```
 
 ### Run locally
@@ -50,9 +51,9 @@ SNYK_API_URL=https://api.snyk.io
 
 ```bash
 # Scan all targets in your Snyk org
-uvx --from git+https://github.com/dylansnyk/aibom-tools aibom-tools scan
+uvx aibom-tools scan
 
-# Shortcut to run scan directly
+# Run from git repo
 uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 ```
 
@@ -60,7 +61,7 @@ uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 
 ```bash
 # Specify path to output file
-uvx --from git+https://github.com/dylansnyk/aibom-tools scan --output output.json
+uvx aibom-tools scan --output output.json
 ```
 
 ### Command Line Options
@@ -93,10 +94,10 @@ Commands:
 
 ```bash
 # General help
-uvx --from git+https://github.com/dylansnyk/aibom-tools --help
+uvx aibom-tools --help
 
 # Scan command help
-uvx --from git+https://github.com/dylansnyk/aibom-tools scan --help
+uvx aibom-tools scan --help
 ```
 
 ## Output Format
