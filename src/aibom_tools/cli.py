@@ -32,7 +32,7 @@ console = Console()
 )
 @click.option(
     "--org-id",
-    envvar="SNYK_ORG_ID", 
+    envvar="SNYK_ORG_ID",
     help="Snyk Organization ID (can also be set via SNYK_ORG_ID env var)",
 )
 @click.option(
@@ -42,12 +42,18 @@ console = Console()
     help="Snyk API base URL (defaults to https://api.snyk.io)",
 )
 @click.option(
+    "--group-id",
+    envvar="SNYK_GROUP_ID", 
+    type=str,
+    help="Snyk Group ID (can also be set via SNYK_GROUP_ID env var)",
+)
+@click.option(
     "--debug",
     is_flag=True,
     help="Enable debug logging",
 )
 @click.pass_context
-def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str], 
+def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str], group_id: Optional[str],
         api_url: str, debug: bool) -> None:
     """
     aibom-tools: CLI tool for generating AI Bill of Materials using Snyk API
@@ -61,9 +67,14 @@ def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str],
     config = Config(
         api_token=api_token,
         org_id=org_id,
+        group_id=group_id,
         api_url=api_url,
         debug=debug
     )
+    
+    if not group_id and not org_id:
+        console.print("[bold red]Error:[/bold red] Either --group-id or --org-id is required.")
+        sys.exit(1)
     
     ctx.obj["config"] = config
     
