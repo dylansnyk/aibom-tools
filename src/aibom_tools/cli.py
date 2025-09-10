@@ -794,6 +794,8 @@ def _generate_html_report(all_aiboms: list, include_types: Optional[str] = None,
             {_generate_component_types_breakdown_html(component_types)}
             
             {_generate_components_table_html(components_data) if components_data else _generate_no_data_html()}
+            
+            {_generate_repositories_list_html(all_aiboms)}
         </div>
         
         <div class="footer">
@@ -1048,6 +1050,65 @@ def _generate_policy_validation_html(all_aiboms: list, rejected_models: Set[str]
             <h4 style="color: #2e7d32; margin: 0 0 10px 0;">✅ Policy Compliance: No forbidden models found in the scan!</h4>
             <p style="color: #2e7d32; margin: 0;">📋 All models in use comply with the provided policy.</p>
         </div>'''
+
+
+def _generate_repositories_list_html(all_aiboms: list) -> str:
+    """Generate HTML for the list of successfully scanned repositories"""
+    if not all_aiboms:
+        return ""
+    
+    # Extract repository names and count AI components for each
+    repositories_data = []
+    for target_info in all_aiboms:
+        target_name = target_info.get('target_name', 'Unknown Target')
+        aibom_data = target_info.get('aibom_data', {})
+        
+        # Handle both old format (data.attributes.components) and new format (components)
+        if 'data' in aibom_data:
+            components = aibom_data.get('data', {}).get('attributes', {}).get('components', [])
+        else:
+            components = aibom_data.get('components', [])
+        
+        # Count AI components (excluding the Root application component)
+        ai_component_count = 0
+        for component in components:
+            if not (component.get('name') == 'Root' and component.get('type') == 'application'):
+                ai_component_count += 1
+        
+        repositories_data.append({
+            'name': target_name,
+            'ai_component_count': ai_component_count
+        })
+    
+    # Sort repositories by name for consistent ordering
+    repositories_data.sort(key=lambda x: x['name'].lower())
+    
+    # Generate HTML content
+    html_content = '''
+    <h3 style="color: #1976d2; margin-top: 40px; margin-bottom: 20px;">📁 Successfully Scanned Repositories</h3>
+    <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="color: #666; margin: 0 0 15px 0; font-size: 0.95em;">The following repositories were successfully scanned for AI components:</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">'''
+    
+    for repo in repositories_data:
+        html_content += f'''
+        <div style="background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 500; color: #333;">{repo['name']}</span>
+            <span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">
+                {repo['ai_component_count']} AI component{'' if repo['ai_component_count'] == 1 else 's'}
+            </span>
+        </div>'''
+    
+    html_content += '''
+        </div>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
+            <span style="color: #666; font-size: 0.9em;">
+                Total: <strong>''' + str(len(repositories_data)) + '''</strong> repositories scanned
+            </span>
+        </div>
+    </div>'''
+    
+    return html_content
 
 def main() -> None:
     """Main entry point for the CLI"""
