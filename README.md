@@ -37,8 +37,13 @@ The tool requires Snyk API credentials. You can provide them via:
 
 ```bash
 export SNYK_API_TOKEN="your-api-token-here"
+
+# One of org id or group id is required. If both are present the group id will be used
 export SNYK_ORG_ID="your-org-id-here"
-export SNYK_API_URL="https://api.snyk.io"  # Optional, defaults to public API
+export SNYK_GROUP_ID="your-group-id-here"
+
+# Optional, defaults to public API
+export SNYK_API_URL="https://api.snyk.io"  
 ```
 
 ### .env File
@@ -66,11 +71,13 @@ uvx aibom-tools scan --include 'ML Model'
 uvx --from git+https://github.com/dylansnyk/aibom-tools scan
 ```
 
+### Create HTML file output
+
 ### Output to JSON file
 
 ```bash
 # Specify path to output file
-uvx aibom-tools scan --output output.json
+uvx aibom-tools scan --json output.json
 ```
 
 ### Policy File Validation
@@ -115,6 +122,7 @@ Options:
   --org-id TEXT     Snyk Organization ID (can also be set via SNYK_ORG_ID env
                     var)
   --api-url TEXT    Snyk API base URL (defaults to https://api.snyk.io)
+  --group-id TEXT   Snyk Group ID (can also be set via SNYK_GROUP_ID env var)
   --debug           Enable debug logging
   --help            Show this message and exit.
 
@@ -131,13 +139,14 @@ Usage: aibom-tools scan [OPTIONS]
   This command triggers a scan of all targets in the given Snyk organization.
 
 Options:
-  -o, --output PATH   Output file path for AI-BOMs
-  --html PATH         Output file path for HTML report
-  -i, --include TEXT  Comma-separated list of AI component types to include in
-                      the summary (e.g., 'ML Model,Application,Library')
-  --policy-file PATH  Path to YAML policy file containing list of forbidden
-                      models
-  --help              Show this message and exit.
+  -o, --output, --json PATH  Output file path for AI-BOMs
+  --html PATH                Output file path for HTML report
+  -i, --include TEXT         Comma-separated list of AI component types to
+                             include in the summary (e.g., 'ML
+                             Model,Application,Library')
+  --policy-file PATH         Path to YAML policy file containing list of
+                             forbidden models
+  --help                     Show this message and exit.
 ```
 
 ### Help

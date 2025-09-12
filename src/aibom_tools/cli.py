@@ -124,6 +124,7 @@ def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str], gro
 @click.option(
     "--output",
     "-o",
+    "--json",
     type=click.Path(),
     help="Output file path for AI-BOMs",
 )
