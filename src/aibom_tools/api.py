@@ -80,7 +80,6 @@ class SnykAIBomAPIClient:
                 next_link = data.get('links', {}).get('next')
                 if next_link:
                     url = f"{self.api_url}{next_link}" # The link is relative, so add the base URL
-                    print(f"Fetching next page of targets...", file=sys.stderr)
                 else:
                     url = None # End the loop
 

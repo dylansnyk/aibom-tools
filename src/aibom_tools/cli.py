@@ -157,13 +157,6 @@ def scan(
     This command triggers a scan of all targets in the given Snyk organization.
     """
 
-    group_id = ctx.obj.get('GROUP_ID')
-    
-    if group_id:
-        click.echo(f"🚀 Performing scan with Group ID: {group_id}")
-    else:
-        click.echo("Performing scan without a specified Group ID.")
-
     config = ctx.obj["config"]
     
     # Load policy file if provided
