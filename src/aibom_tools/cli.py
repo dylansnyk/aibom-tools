@@ -176,9 +176,9 @@ def scan(
                      "Set SNYK_API_TOKEN environment variable or use --api-token option.")
         sys.exit(1)
         
-    if not config.org_id:
-        console.print("[bold red]Error:[/bold red] Organization ID is required. "
-                     "Set SNYK_ORG_ID environment variable or use --org-id option.")
+    if not config.org_id and not config.group_id:
+        console.print("[bold red]Error:[/bold red] Organization ID or Group ID is required. "
+                     "Set SNYK_ORG_ID or SNYK_GROUP_ID environment variable, or use --org-id or --group-id option.")
         sys.exit(1)
     
     # Create API client

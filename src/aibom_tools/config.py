@@ -57,8 +57,8 @@ class Config:
         if not self.api_token:
             raise ValueError("API token is required. Set SNYK_API_TOKEN environment variable.")
             
-        if not self.org_id:
-            raise ValueError("Organization ID is required. Set SNYK_ORG_ID environment variable.")
+        if not self.org_id and not self.group_id:
+            raise ValueError("Organization ID or Group ID is required. Set SNYK_ORG_ID or SNYK_GROUP_ID environment variable.")
     
     def get_aibom_url(self) -> str:
         """Get the AI-BOM creation endpoint URL"""
