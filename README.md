@@ -7,6 +7,9 @@ A CLI tool for generating AI Bill of Materials (AI-BOM) using the Snyk API.
 ### Using uvx (recommended)
 
 ```bash
+export SNYK_ORG_ID="your-org-id-here"
+export SNYK_API_TOKEN="your-api-token-here"
+
 uv tool install git+https://github.com/dylansnyk/aibom-tools
 uvx aibom-tools scan
 ```
@@ -69,9 +72,42 @@ uvx aibom-tools scan --include 'ML Model'
 
 # Run from git repo
 uvx --from git+https://github.com/dylansnyk/aibom-tools scan
+
+# Optionally, instead of setting environment variables, you can pass API token and org id as command line options
+uvx aibom-tools \
+    --api-token your-api-token-here \
+    --org-id your-org-id-here \
+    scan 
 ```
 
+### Specify AI Components to Include
+
+```bash
+# Filter only for ML Models
+uvx aibom-tools scan --include 'ML Model'
+
+# Filter multiple components
+uvx aibom-tools scan --include 'ML Model,Application,Library'
+```
+
+Available components:
+- Application
+- ML Model
+- Dataset
+- Library
+- Agent
+- MCP Client
+- MCP Server
+- MCP Resource
+- Tool
+- Service
+
 ### Create HTML file output
+
+```bash
+# Specify path to output file
+uvx aibom-tools scan --html output.html
+```
 
 ### Output to JSON file
 
