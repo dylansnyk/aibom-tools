@@ -5,7 +5,7 @@ from rich.table import Table
 
 console = Console()
 
-def display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = None, rejected_models: Optional[Set[str]] = None) -> None:
+def display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = None, rejected_models: Optional[Set[str]] = None, group_by: str = 'component') -> None:
     """Display a comprehensive summary of all AI components across all targets"""
     if not all_aiboms:
         console.print("[yellow]No AI components found across any targets.[/yellow]")
@@ -53,16 +53,27 @@ def display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = N
     with console.status("[bold green]Preparing AI Components Summary...", spinner="aesthetic"):
         time.sleep(0.5)
     
-    console.print("\n[bold green]🤖 AI Components Summary - All Targets 🎯[/bold green]")
+    if group_by.lower() == 'repo':
+        console.print("\n[bold green]🤖 AI Components Summary - Grouped by Repository 🎯[/bold green]")
+    else:
+        console.print("\n[bold green]🤖 AI Components Summary - All Targets 🎯[/bold green]")
     
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("AI Component", style="cyan", no_wrap=False, min_width=40)
-    table.add_column("Target Name", style="yellow", no_wrap=True, min_width=25)
-    table.add_column("Type", style="blue", no_wrap=True, min_width=15)
-    table.add_column("Locations", style="dim", no_wrap=False, min_width=30)
+    if group_by.lower() == 'repo':
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Repository", style="yellow", no_wrap=True, min_width=30)
+        table.add_column("AI Component", style="cyan", no_wrap=False, min_width=40)
+        table.add_column("Type", style="blue", no_wrap=True, min_width=15)
+        table.add_column("Locations", style="dim", no_wrap=False, min_width=30)
+    else:
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("AI Component", style="cyan", no_wrap=False, min_width=40)
+        table.add_column("Target Name", style="yellow", no_wrap=True, min_width=25)
+        table.add_column("Type", style="blue", no_wrap=True, min_width=15)
+        table.add_column("Locations", style="dim", no_wrap=False, min_width=30)
     
     # Collect all AI components across targets
     total_components = 0
+    components_data = []
     
     for target_info in all_aiboms:
         target_name = target_info.get('target_name', 'Unknown Target')
@@ -118,8 +129,38 @@ def display_aibom_summary_all(all_aiboms: list, include_types: Optional[str] = N
             else:
                 location_str = "No source locations"
             
-            table.add_row(name, target_name, formatted_type, location_str)
+            components_data.append({
+                'name': name,
+                'target_name': target_name,
+                'type': formatted_type,
+                'locations': location_str
+            })
             total_components += 1
+    
+    # Add rows to table based on grouping mode
+    if group_by.lower() == 'repo':
+        # Group components by repository
+        from collections import defaultdict
+        repo_groups = defaultdict(list)
+        for component in components_data:
+            repo_groups[component['target_name']].append(component)
+        
+        # Sort repositories and components within each repo
+        for repo_name in sorted(repo_groups.keys(), key=str.lower):
+            components = sorted(repo_groups[repo_name], key=lambda x: x['name'].lower())
+            
+            # Add first component with repo name
+            first_component = components[0]
+            table.add_row(repo_name, first_component['name'], first_component['type'], first_component['locations'])
+            
+            # Add remaining components with empty repo column
+            for component in components[1:]:
+                table.add_row("", component['name'], component['type'], component['locations'])
+    else:
+        # Sort by component name, then by repository name (original behavior)
+        components_data.sort(key=lambda x: (x['name'].lower(), x['target_name'].lower()))
+        for component in components_data:
+            table.add_row(component['name'], component['target_name'], component['type'], component['locations'])
     
     # Display the completed table
     console.print(table)

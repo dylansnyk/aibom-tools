@@ -1,7 +1,7 @@
 from typing import Optional, Set
 import time
 
-def generate_html_report(all_aiboms: list, include_types: Optional[str] = None, rejected_models: Optional[Set[str]] = None) -> str:
+def generate_html_report(all_aiboms: list, include_types: Optional[str] = None, rejected_models: Optional[Set[str]] = None, group_by: str = 'component') -> str:
     """Generate an HTML report of all AI components across all targets"""
     if not all_aiboms:
         return _generate_empty_html_report()
@@ -182,8 +182,32 @@ def generate_html_report(all_aiboms: list, include_types: Optional[str] = None, 
             padding: 12px 15px;
             border-bottom: 1px solid #e9ecef;
         }}
+        .repo-group-first {{
+            border-top: 2px solid #667eea;
+        }}
+        .repo-group-first td:first-child {{
+            border-top: 2px solid #667eea;
+            font-weight: bold;
+        }}
+        .repo-group-continuation {{
+            border-bottom: none !important;
+            vertical-align: top;
+        }}
+        .repo-group-last td:first-child {{
+            border-bottom: 1px solid #667eea;
+        }}
+        .repo-group-continuation {{
+            border-left: none;
+            border-right: 1px solid #e9ecef;
+        }}
+        .repo-group-continuation:first-child {{
+            border-left: 1px solid #e9ecef;
+        }}
         tr:hover {{
             background-color: #f8f9fa;
+        }}
+        .repo-empty {{
+            border-bottom: none !important;
         }}
         .type-badge {{
             display: inline-block;
@@ -261,7 +285,7 @@ def generate_html_report(all_aiboms: list, include_types: Optional[str] = None, 
             
             {_generate_component_types_breakdown_html(component_types)}
             
-            {_generate_components_table_html(components_data) if components_data else _generate_no_data_html()}
+            {_generate_components_table_html(components_data, group_by) if components_data else _generate_no_data_html()}
             
             {_generate_repositories_list_html(all_aiboms)}
         </div>
@@ -372,41 +396,98 @@ def _generate_component_types_breakdown_html(component_types: dict) -> str:
     breakdown_html += '</div>'
     return breakdown_html
 
-def _generate_components_table_html(components_data: list) -> str:
+def _generate_components_table_html(components_data: list, group_by: str = 'component') -> str:
     """Generate HTML table for components data"""
     if not components_data:
         return _generate_no_data_html()
     
-    table_html = '''
-    <h3>🔍 AI Components Details</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>AI Component</th>
-                <th>Target Name</th>
-                <th>Type</th>
-                <th>Locations</th>
-            </tr>
-        </thead>
-        <tbody>'''
+    # Sort data based on grouping mode
+    if group_by.lower() == 'repo':
+        components_data.sort(key=lambda x: (x['target_name'].lower(), x['name'].lower()))
+        table_html = '''
+        <h3>🔍 AI Components Details - Grouped by Repository</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Repository</th>
+                    <th>AI Component</th>
+                    <th>Type</th>
+                    <th>Locations</th>
+                </tr>
+            </thead>
+            <tbody>'''
+    else:
+        components_data.sort(key=lambda x: (x['name'].lower(), x['target_name'].lower()))
+        table_html = '''
+        <h3>🔍 AI Components Details</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>AI Component</th>
+                    <th>Target Name</th>
+                    <th>Type</th>
+                    <th>Locations</th>
+                </tr>
+            </thead>
+            <tbody>'''
     
-    for component in components_data:
-        # Determine CSS class for type badge
-        type_class = 'type-application'  # default
-        if 'ML Model' in component['type']:
-            type_class = 'type-ml-model'
-        elif 'Dataset' in component['type']:
-            type_class = 'type-dataset'
-        elif 'Library' in component['type']:
-            type_class = 'type-library'
+    if group_by.lower() == 'repo':
+        # Group components by repository
+        from collections import defaultdict
+        repo_groups = defaultdict(list)
+        for component in components_data:
+            repo_groups[component['target_name']].append(component)
         
-        table_html += f'''
-            <tr>
-                <td><strong>{component['name']}</strong></td>
-                <td>{component['target_name']}</td>
-                <td><span class="type-badge {type_class}">{component['type']}</span></td>
-                <td class="locations">{component['locations']}</td>
-            </tr>'''
+        # Sort repositories and components within each repo
+        for repo_name in sorted(repo_groups.keys(), key=str.lower):
+            components = sorted(repo_groups[repo_name], key=lambda x: x['name'].lower())
+            
+            for i, component in enumerate(components):
+                # Determine CSS class for type badge
+                type_class = 'type-application'  # default
+                if 'ML Model' in component['type']:
+                    type_class = 'type-ml-model'
+                elif 'Dataset' in component['type']:
+                    type_class = 'type-dataset'
+                elif 'Library' in component['type']:
+                    type_class = 'type-library'
+                
+                if i == 0:
+                    # First component shows repo name with group styling
+                    table_html += f'''
+                        <tr class="repo-group-first">
+                            <td><strong>{repo_name}</strong></td>
+                            <td>{component['name']}</td>
+                            <td><span class="type-badge {type_class}">{component['type']}</span></td>
+                            <td class="locations">{component['locations']}</td>
+                        </tr>'''
+                else:
+                    # Subsequent components have empty repo column with no border
+                    table_html += f'''
+                        <tr>
+                            <td class="repo-empty"></td>
+                            <td>{component['name']}</td>
+                            <td><span class="type-badge {type_class}">{component['type']}</span></td>
+                            <td class="locations">{component['locations']}</td>
+                        </tr>'''
+    else:
+        for component in components_data:
+            # Determine CSS class for type badge
+            type_class = 'type-application'  # default
+            if 'ML Model' in component['type']:
+                type_class = 'type-ml-model'
+            elif 'Dataset' in component['type']:
+                type_class = 'type-dataset'
+            elif 'Library' in component['type']:
+                type_class = 'type-library'
+            
+            table_html += f'''
+                <tr>
+                    <td><strong>{component['name']}</strong></td>
+                    <td>{component['target_name']}</td>
+                    <td><span class="type-badge {type_class}">{component['type']}</span></td>
+                    <td class="locations">{component['locations']}</td>
+                </tr>'''
     
     table_html += '''
         </tbody>

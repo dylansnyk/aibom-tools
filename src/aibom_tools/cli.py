@@ -144,6 +144,12 @@ def cli(ctx: click.Context, api_token: Optional[str], org_id: Optional[str], gro
     type=click.Path(exists=True, readable=True),
     help="Path to YAML policy file containing list of forbidden models",
 )
+@click.option(
+    "--group-by",
+    type=click.Choice(['component', 'repo'], case_sensitive=False),
+    default='component',
+    help="Group output by 'component' (default) or 'repo'",
+)
 @click.pass_context
 def scan(
     ctx: click.Context,
@@ -151,6 +157,7 @@ def scan(
     html: Optional[str],
     include: Optional[str],
     policy_file: Optional[str],
+    group_by: str,
 ) -> None:
     """
     Create a new AI-BOM scan
@@ -250,7 +257,7 @@ def scan(
         
         # Display comprehensive summary of all AI components
         if all_aiboms:
-            display_aibom_summary_all(all_aiboms, include_types=include, rejected_models=rejected_models)
+            display_aibom_summary_all(all_aiboms, include_types=include, rejected_models=rejected_models, group_by=group_by)
         else:
             console.print("[bold yellow]⚠️  No AI components found in any targets.[/bold yellow]")
 
@@ -261,7 +268,7 @@ def scan(
             console.print(f"[bold green]📄 JSON report saved to: {output}[/bold green]")
         
         if html:
-            html_content = generate_html_report(all_aiboms, include_types=include, rejected_models=rejected_models)
+            html_content = generate_html_report(all_aiboms, include_types=include, rejected_models=rejected_models, group_by=group_by)
             with open(html, 'w', encoding='utf-8') as f:
                 f.write(html_content)
             console.print(f"[bold green]🌐 HTML report saved to: {html}[/bold green]")

@@ -116,6 +116,25 @@ uvx aibom-tools scan --html output.html
 uvx aibom-tools scan --json output.json
 ```
 
+### Output Grouping
+
+You can control how the output is grouped using the `--group-by` parameter:
+
+```bash
+# Group by AI component (default behavior)
+uvx aibom-tools scan --group-by component
+
+# Group by repository - shows each repository with its AI components grouped together
+uvx aibom-tools scan --group-by repo
+
+# Generate HTML report grouped by repository
+uvx aibom-tools scan --group-by repo --html report.html
+```
+
+Available grouping options:
+- `component` (default): Groups output by AI component name
+- `repo`: Groups output by repository, showing each repository with its AI components listed underneath
+
 ### Policy File Validation
 
 You can use a YAML policy file to define forbidden AI models that should be flagged during the scan:
@@ -139,51 +158,6 @@ reject:
 
 An example policy file (`policy-example.yaml`) is included in the repository for reference.
 
-### Command Line Options
-
-```zsh
-# Global options
-➜  aibom-tools git:(main) ✗ uv run aibom-tools --help         
-Usage: aibom-tools [OPTIONS] COMMAND [ARGS]...
-
-  aibom-tools: CLI tool for generating AI Bill of Materials using Snyk API
-
-  This tool helps you create AI BOMs for your projects using Snyk's AI-BOM
-  API.
-
-Options:
-  --version         Show the version and exit.
-  --api-token TEXT  Snyk API token (can also be set via SNYK_API_TOKEN env
-                    var)
-  --org-id TEXT     Snyk Organization ID (can also be set via SNYK_ORG_ID env
-                    var)
-  --api-url TEXT    Snyk API base URL (defaults to https://api.snyk.io)
-  --group-id TEXT   Snyk Group ID (can also be set via SNYK_GROUP_ID env var)
-  --debug           Enable debug logging
-  --help            Show this message and exit.
-
-Commands:
-  scan  Create a new AI-BOM scan
-```
-```zsh
-# Scan options
-➜  aibom-tools git:(main) ✗ uv run aibom-tools scan --help
-Usage: aibom-tools scan [OPTIONS]
-
-  Create a new AI-BOM scan
-
-  This command triggers a scan of all targets in the given Snyk organization.
-
-Options:
-  -o, --output, --json PATH  Output file path for AI-BOMs
-  --html PATH                Output file path for HTML report
-  -i, --include TEXT         Comma-separated list of AI component types to
-                             include in the summary (e.g., 'ML
-                             Model,Application,Library')
-  --policy-file PATH         Path to YAML policy file containing list of
-                             forbidden models
-  --help                     Show this message and exit.
-```
 
 ### Help
 
